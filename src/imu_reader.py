@@ -71,75 +71,68 @@ class ImuPacketParser:
 
     def find_packet(self, buffer: bytes) -> Optional[Tuple[ImuData, int]]:
         """
-        Find and parse next IMU packet in buffer.
+        Find and parse next IMU packet in buffer by scanning for valid IMU data.
 
         Returns:
             (ImuData, bytes_consumed) if packet found, None otherwise
         """
-        # Find header
-        header_pos = -1
-        for header in self.HEADERS:
-            pos = buffer.find(header)
-            if pos != -1 and (header_pos == -1 or pos < header_pos):
-                header_pos = pos
+        # Scan buffer for valid IMU data pattern (6 floats with gravity signature)
+        for offset in range(0, len(buffer) - 24, 4):
+            try:
+                values = struct.unpack('<6f', buffer[offset:offset + 24])
 
-        if header_pos == -1:
-            return None
+                # Check for valid IMU: gyro reasonable, accel ~9.8 m/s^2
+                gyro_ok = all(-10 < v < 10 for v in values[:3])
+                accel_mag = (values[3]**2 + values[4]**2 + values[5]**2) ** 0.5
 
-        # Find footer after header
-        footer_pos = buffer.find(IMU_FOOTER, header_pos)
-        if footer_pos == -1:
-            return None
+                if gyro_ok and 9.0 < accel_mag < 11.0:
+                    imu_data = ImuData(
+                        gyro_x=values[0],
+                        gyro_y=values[1],
+                        gyro_z=values[2],
+                        accel_x=values[3],
+                        accel_y=values[4],
+                        accel_z=values[5],
+                        timestamp=time.time()
+                    )
+                    self.packets_parsed += 1
+                    # Consume up to end of this IMU data
+                    return (imu_data, offset + 24)
+            except struct.error:
+                continue
 
-        # Extract complete message
-        message_end = footer_pos + len(IMU_FOOTER)
-        message = buffer[header_pos:message_end]
-
-        # Parse IMU data from message
-        imu_data = self._parse_message(message)
-
-        if imu_data:
-            self.packets_parsed += 1
-            self.bytes_processed += message_end
-
-        return (imu_data, message_end) if imu_data else None
+        return None
 
     def _parse_message(self, message: bytes) -> Optional[ImuData]:
         """
         Extract IMU data from complete message.
 
-        The 6 floats are located at a fixed offset within the message.
-        Based on reference: DATA_START_OFFSET=20, DATA_END_OFFSET=-26
+        The 6 floats (gyro xyz, accel xyz) are at offset 168 from packet start.
+        Discovered via packet analysis: offset 168 gives mag ~9.81 (gravity).
         """
-        # Need at least header + data + footer
-        min_size = 6 + 20 + 24 + 26 + 20  # ~96 bytes minimum
+        # Need at least 168 + 24 bytes for IMU data
+        min_size = 168 + 24
         if len(message) < min_size:
-            return None
+            return self._parse_message_search(message)
 
         try:
-            # Extract 24 bytes (6 floats) from the middle of the message
-            # Using offsets from reference implementation
-            data_start = 20  # After header + timestamp region
-            data_end = data_start + 24
-
-            if data_end > len(message) - 26:
-                # Try alternate parsing - find the float region
-                # Look for reasonable float values in the message
-                return self._parse_message_search(message)
-
-            imu_bytes = message[data_start:data_end]
+            # IMU data is at offset 168 from packet start (verified via analysis)
+            data_start = 168
+            imu_bytes = message[data_start:data_start + 24]
             values = struct.unpack('<6f', imu_bytes)
 
-            # Sanity check - values should be reasonable
-            # Gyro typically < 10 rad/s, accel typically < 20 m/s^2
-            if all(-100 < v < 100 for v in values):
+            # Sanity check - gyro reasonable and accel magnitude ~9.8 (gravity)
+            gyro_ok = all(-10 < v < 10 for v in values[:3])
+            accel_mag = (values[3]**2 + values[4]**2 + values[5]**2) ** 0.5
+
+            if gyro_ok and 9.0 < accel_mag < 11.0:
                 return ImuData(
                     gyro_x=values[0],
                     gyro_y=values[1],
                     gyro_z=values[2],
-                    accel_z=values[3],  # Note: order is az, ay, ax in reference
+                    accel_x=values[3],
                     accel_y=values[4],
-                    accel_x=values[5],
+                    accel_z=values[5],
                     timestamp=time.time()
                 )
         except struct.error:
@@ -157,11 +150,11 @@ class ImuPacketParser:
                 values = struct.unpack('<6f', message[offset:offset + 24])
 
                 # Check if values look like IMU data:
-                # - Gyro: typically small values (-2 to 2 rad/s at rest)
-                # - Accel: should have ~9.8 in one axis (gravity)
+                # - Gyro: typically small values (-10 to 10 rad/s)
+                # - Accel: should have magnitude ~9.8 (gravity)
                 gyro_ok = all(-10 < v < 10 for v in values[:3])
                 accel_magnitude = (values[3]**2 + values[4]**2 + values[5]**2) ** 0.5
-                accel_ok = 8.0 < accel_magnitude < 12.0  # Roughly 1g
+                accel_ok = 9.0 < accel_magnitude < 11.0  # Tighter gravity check
 
                 if gyro_ok and accel_ok:
                     return ImuData(
