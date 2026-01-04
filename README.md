@@ -64,12 +64,17 @@ Press `Q` to quit.
 
 ### Full GUI Application
 
-Full GUI with IMU data and camera controls:
+Full GUI with IMU data, service scanner, and camera launcher:
 
 ```bash
 cd src
 python main.py
 ```
+
+Features:
+- Real-time IMU (accelerometer/gyroscope) display
+- Service port scanner
+- "Launch Camera" button to open video viewer
 
 ### Video Decoder (Offline)
 

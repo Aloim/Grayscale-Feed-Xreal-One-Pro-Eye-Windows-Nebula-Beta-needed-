@@ -10,6 +10,8 @@ from tkinter import ttk, messagebox
 import threading
 import time
 import sys
+import subprocess
+import os
 from typing import Optional
 
 from config import (
@@ -36,6 +38,9 @@ class XrealTestApp:
         # State
         self.imu_reader: Optional[ImuReader] = None
         self._update_rate = 30  # UI updates per second
+        self._last_imu: Optional[ImuData] = None  # Keep last valid reading
+        self._camera_active = False
+        self._camera_thread = None
 
         # Setup UI
         self._setup_styles()
@@ -193,6 +198,7 @@ class XrealTestApp:
 
         ttk.Button(frame, text="Connect IMU", command=self._connect_imu).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Disconnect", command=self._disconnect).pack(fill=tk.X, pady=2)
+        ttk.Button(frame, text="Launch Camera", command=self._launch_camera).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Scan Services", command=self._scan_services).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Clear Log", command=self._clear_log).pack(fill=tk.X, pady=2)
 
@@ -242,6 +248,32 @@ class XrealTestApp:
             self.imu_reader.stop()
             self.imu_reader = None
             self._log("Disconnected")
+
+    def _launch_camera(self):
+        """Launch the camera viewer in a separate window"""
+        if self._camera_active:
+            self._log("Camera viewer already running")
+            return
+
+        # Get path to live_video_viewer.py
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        viewer_path = os.path.join(script_dir, "live_video_viewer.py")
+
+        if not os.path.exists(viewer_path):
+            self._log(f"Error: Camera viewer not found at {viewer_path}")
+            return
+
+        self._log("Launching camera viewer...")
+        try:
+            # Launch as subprocess (non-blocking)
+            self._camera_thread = subprocess.Popen(
+                [sys.executable, viewer_path],
+                cwd=script_dir
+            )
+            self._camera_active = True
+            self._log("Camera viewer launched (press Q in camera window to close)")
+        except Exception as e:
+            self._log(f"Failed to launch camera: {e}")
 
     def _on_imu_state_change(self, state: ConnectionState):
         """Handle IMU connection state change"""
@@ -314,16 +346,21 @@ class XrealTestApp:
         if self.imu_reader:
             imu = self.imu_reader.get_latest()
 
+            # Store last valid reading
             if imu:
+                self._last_imu = imu
+
+            # Display last valid reading (keeps values on screen)
+            if self._last_imu:
                 # Update gyro labels
-                self.gyro_labels['X'].configure(text=f"{imu.gyro_x:+.4f}")
-                self.gyro_labels['Y'].configure(text=f"{imu.gyro_y:+.4f}")
-                self.gyro_labels['Z'].configure(text=f"{imu.gyro_z:+.4f}")
+                self.gyro_labels['X'].configure(text=f"{self._last_imu.gyro_x:+.4f}")
+                self.gyro_labels['Y'].configure(text=f"{self._last_imu.gyro_y:+.4f}")
+                self.gyro_labels['Z'].configure(text=f"{self._last_imu.gyro_z:+.4f}")
 
                 # Update accel labels
-                self.accel_labels['X'].configure(text=f"{imu.accel_x:+.4f}")
-                self.accel_labels['Y'].configure(text=f"{imu.accel_y:+.4f}")
-                self.accel_labels['Z'].configure(text=f"{imu.accel_z:+.4f}")
+                self.accel_labels['X'].configure(text=f"{self._last_imu.accel_x:+.4f}")
+                self.accel_labels['Y'].configure(text=f"{self._last_imu.accel_y:+.4f}")
+                self.accel_labels['Z'].configure(text=f"{self._last_imu.accel_z:+.4f}")
 
             # Update statistics
             packets = self.imu_reader.packets_received
@@ -349,6 +386,9 @@ class XrealTestApp:
         finally:
             if self.imu_reader:
                 self.imu_reader.stop()
+            # Terminate camera viewer if running
+            if self._camera_thread and self._camera_thread.poll() is None:
+                self._camera_thread.terminate()
 
 
 def main():
