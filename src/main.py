@@ -38,9 +38,20 @@ class XrealTestApp:
         # State
         self.imu_reader: Optional[ImuReader] = None
         self._update_rate = 30  # UI updates per second
-        self._last_imu: Optional[ImuData] = None  # Keep last valid reading
         self._camera_active = False
         self._camera_thread = None
+
+        # StringVars for IMU display (persists values automatically)
+        self.gyro_vars = {
+            'X': tk.StringVar(value="0.0000"),
+            'Y': tk.StringVar(value="0.0000"),
+            'Z': tk.StringVar(value="0.0000"),
+        }
+        self.accel_vars = {
+            'X': tk.StringVar(value="0.0000"),
+            'Y': tk.StringVar(value="0.0000"),
+            'Z': tk.StringVar(value="0.0000"),
+        }
 
         # Setup UI
         self._setup_styles()
@@ -111,14 +122,12 @@ class XrealTestApp:
 
         ttk.Label(gyro_frame, text="Gyroscope (rad/s)", style='Header.TLabel').pack(anchor=tk.W)
 
-        self.gyro_labels = {}
         for axis in ['X', 'Y', 'Z']:
             row = ttk.Frame(gyro_frame)
             row.pack(fill=tk.X, pady=2)
             ttk.Label(row, text=f"  {axis}:", width=6).pack(side=tk.LEFT)
-            label = ttk.Label(row, text="0.0000", style='Value.TLabel', width=12)
+            label = ttk.Label(row, textvariable=self.gyro_vars[axis], style='Value.TLabel', width=12)
             label.pack(side=tk.LEFT)
-            self.gyro_labels[axis] = label
 
         # Accelerometer section
         accel_frame = ttk.Frame(frame)
@@ -126,14 +135,12 @@ class XrealTestApp:
 
         ttk.Label(accel_frame, text="Accelerometer (m/s^2)", style='Header.TLabel').pack(anchor=tk.W)
 
-        self.accel_labels = {}
         for axis in ['X', 'Y', 'Z']:
             row = ttk.Frame(accel_frame)
             row.pack(fill=tk.X, pady=2)
             ttk.Label(row, text=f"  {axis}:", width=6).pack(side=tk.LEFT)
-            label = ttk.Label(row, text="0.0000", style='Value.TLabel', width=12)
+            label = ttk.Label(row, textvariable=self.accel_vars[axis], style='Value.TLabel', width=12)
             label.pack(side=tk.LEFT)
-            self.accel_labels[axis] = label
 
     def _setup_stats_panel(self, parent):
         """Statistics panel"""
@@ -366,9 +373,15 @@ class XrealTestApp:
         if self.imu_reader:
             imu = self.imu_reader.get_latest()
 
-            # Store last valid reading
+            # Update display with new data (StringVars persist automatically)
             if imu:
-                self._last_imu = imu
+                self.gyro_vars['X'].set(f"{imu.gyro_x:+.4f}")
+                self.gyro_vars['Y'].set(f"{imu.gyro_y:+.4f}")
+                self.gyro_vars['Z'].set(f"{imu.gyro_z:+.4f}")
+
+                self.accel_vars['X'].set(f"{imu.accel_x:+.4f}")
+                self.accel_vars['Y'].set(f"{imu.accel_y:+.4f}")
+                self.accel_vars['Z'].set(f"{imu.accel_z:+.4f}")
 
             # Update statistics
             packets = self.imu_reader.packets_received
@@ -382,16 +395,6 @@ class XrealTestApp:
                     self.stats_labels['Rate'].configure(text=f"{min(rate, 1000):.0f} Hz")
                 else:
                     self.stats_labels['Rate'].configure(text="0 Hz")
-
-        # Always display last valid reading (even when disconnected)
-        if self._last_imu:
-            self.gyro_labels['X'].configure(text=f"{self._last_imu.gyro_x:+.4f}")
-            self.gyro_labels['Y'].configure(text=f"{self._last_imu.gyro_y:+.4f}")
-            self.gyro_labels['Z'].configure(text=f"{self._last_imu.gyro_z:+.4f}")
-
-            self.accel_labels['X'].configure(text=f"{self._last_imu.accel_x:+.4f}")
-            self.accel_labels['Y'].configure(text=f"{self._last_imu.accel_y:+.4f}")
-            self.accel_labels['Z'].configure(text=f"{self._last_imu.accel_z:+.4f}")
 
     def run(self):
         """Start the application"""
