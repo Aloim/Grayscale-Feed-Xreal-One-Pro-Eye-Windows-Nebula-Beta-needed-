@@ -121,6 +121,13 @@ When XREAL glasses connect via USB-C, Windows creates an NCM (Network Control Mo
 2. Run `ipconfig` - verify you have a 169.254.x.x address
 3. Try `ping 169.254.2.1` - should succeed if glasses are connected
 4. **Make sure Spatial Anchor is activated** in the glasses menu
+5. **Disable Windows Firewall temporarily** to test if it's blocking the connection
+
+### OpenCV/Window issues
+
+1. Install [Visual C++ Redistributable x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+2. Make sure you have **64-bit Python** (not 32-bit)
+3. Try reinstalling OpenCV: `pip uninstall opencv-python && pip install opencv-python`
 
 ### No network adapter appears
 
