@@ -13,6 +13,7 @@ Stream video from the XREAL One Pro glasses Eye camera accessory on Windows.
 - **Windows Nebula Beta** - Required for Eye camera streaming. Request access on the [XREAL Official Discord](https://discord.gg/QStWHRBajD) or [XREAL Community Discord](https://discord.com/invite/WBHTKMgjjB)
 - **Python 3.10+** (3.11 or 3.12 recommended)
 - **pip** (Python package manager)
+- **Microsoft Visual C++ Redistributable** - Required for OpenCV. Download from [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
 
 ## Installation
 
