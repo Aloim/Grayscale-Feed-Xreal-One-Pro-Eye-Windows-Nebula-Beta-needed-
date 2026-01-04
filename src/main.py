@@ -199,6 +199,7 @@ class XrealTestApp:
         ttk.Button(frame, text="Connect IMU", command=self._connect_imu).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Disconnect", command=self._disconnect).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Launch Camera", command=self._launch_camera).pack(fill=tk.X, pady=2)
+        ttk.Button(frame, text="Stop Camera", command=self._stop_camera).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Scan Services", command=self._scan_services).pack(fill=tk.X, pady=2)
         ttk.Button(frame, text="Clear Log", command=self._clear_log).pack(fill=tk.X, pady=2)
 
@@ -274,6 +275,24 @@ class XrealTestApp:
             self._log("Camera viewer launched (press Q in camera window to close)")
         except Exception as e:
             self._log(f"Failed to launch camera: {e}")
+
+    def _stop_camera(self):
+        """Stop the camera viewer"""
+        if not self._camera_active or not self._camera_thread:
+            self._log("Camera viewer not running")
+            return
+
+        try:
+            if self._camera_thread.poll() is None:
+                self._camera_thread.terminate()
+                self._log("Camera viewer stopped")
+            else:
+                self._log("Camera viewer already closed")
+        except Exception as e:
+            self._log(f"Error stopping camera: {e}")
+        finally:
+            self._camera_active = False
+            self._camera_thread = None
 
     def _on_imu_state_change(self, state: ConnectionState):
         """Handle IMU connection state change"""
