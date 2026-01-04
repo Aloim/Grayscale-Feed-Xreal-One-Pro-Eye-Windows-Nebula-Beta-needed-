@@ -362,24 +362,13 @@ class XrealTestApp:
 
     def _update_ui(self):
         """Update UI with latest data"""
+        # Get new data if reader is active
         if self.imu_reader:
             imu = self.imu_reader.get_latest()
 
             # Store last valid reading
             if imu:
                 self._last_imu = imu
-
-            # Display last valid reading (keeps values on screen)
-            if self._last_imu:
-                # Update gyro labels
-                self.gyro_labels['X'].configure(text=f"{self._last_imu.gyro_x:+.4f}")
-                self.gyro_labels['Y'].configure(text=f"{self._last_imu.gyro_y:+.4f}")
-                self.gyro_labels['Z'].configure(text=f"{self._last_imu.gyro_z:+.4f}")
-
-                # Update accel labels
-                self.accel_labels['X'].configure(text=f"{self._last_imu.accel_x:+.4f}")
-                self.accel_labels['Y'].configure(text=f"{self._last_imu.accel_y:+.4f}")
-                self.accel_labels['Z'].configure(text=f"{self._last_imu.accel_z:+.4f}")
 
             # Update statistics
             packets = self.imu_reader.packets_received
@@ -393,6 +382,16 @@ class XrealTestApp:
                     self.stats_labels['Rate'].configure(text=f"{min(rate, 1000):.0f} Hz")
                 else:
                     self.stats_labels['Rate'].configure(text="0 Hz")
+
+        # Always display last valid reading (even when disconnected)
+        if self._last_imu:
+            self.gyro_labels['X'].configure(text=f"{self._last_imu.gyro_x:+.4f}")
+            self.gyro_labels['Y'].configure(text=f"{self._last_imu.gyro_y:+.4f}")
+            self.gyro_labels['Z'].configure(text=f"{self._last_imu.gyro_z:+.4f}")
+
+            self.accel_labels['X'].configure(text=f"{self._last_imu.accel_x:+.4f}")
+            self.accel_labels['Y'].configure(text=f"{self._last_imu.accel_y:+.4f}")
+            self.accel_labels['Z'].configure(text=f"{self._last_imu.accel_z:+.4f}")
 
     def run(self):
         """Start the application"""
