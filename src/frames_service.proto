@@ -1,0 +1,164 @@
+// Reconstructed from libnr_driver.so binary analysis
+// XREAL Glasses gRPC Streaming Protocol
+//
+// Binary: libnr_driver.so (23 MB, ARM64, Android)
+// Service endpoint: /frames.service.Frames/StartStreaming
+// Package identifiers found:
+//   - com.google.frames-protocol
+//   - com.google.frames-protocol-camera
+//   - com.google.frames-protocol-imu
+//
+// Confidence: MEDIUM (reconstructed from strings and binary patterns)
+//
+// Evidence sources:
+//   1. gRPC service name at offset 0x010d4bf2
+//   2. Message names at offsets: StreamRequest (0x010c67c1), StreamResponse (0x010c6811), CameraFrame (0x015e196b)
+//   3. Field names: session_id, timestamp, width, height, frame_data, format
+//   4. Service logging strings: "FrameService::StartStreaming", "BaseStreamReactor::SendResponse"
+
+syntax = "proto3";
+
+package frames.service;
+
+option java_package = "com.google.frames.protocol";
+option java_outer_classname = "FramesProto";
+
+// Main gRPC service for camera/sensor streaming
+service Frames {
+  // Bidirectional streaming RPC for frame data
+  // Client sends configuration/control requests
+  // Server sends camera frames and sensor data
+  rpc StartStreaming(stream StreamRequest) returns (stream StreamResponse);
+}
+
+// Client -> Server: Stream control requests
+message StreamRequest {
+  // Session identifier for tracking stream lifecycle
+  string session_id = 1;
+
+  // Timestamp of request (likely Unix milliseconds)
+  int64 timestamp = 2;
+
+  // Request type (one of)
+  oneof request {
+    OpenStreamRequest open_stream = 10;
+    CloseStreamRequest close_stream = 11;
+    ReceiveSensorStreamRequest receive_sensor = 12;
+  }
+}
+
+// Open camera/sensor stream
+message OpenStreamRequest {
+  // Camera stream configuration
+  CameraConfig camera_config = 1;
+
+  // IMU/sensor configuration
+  SensorConfig sensor_config = 2;
+}
+
+// Close active stream
+message CloseStreamRequest {
+  string reason = 1;
+}
+
+// Request sensor data stream
+message ReceiveSensorStreamRequest {
+  // Types of sensors to enable
+  repeated SensorType sensors = 1;
+}
+
+enum SensorType {
+  SENSOR_TYPE_UNSPECIFIED = 0;
+  IMU = 1;
+  ACCELEROMETER = 2;
+  GYROSCOPE = 3;
+  MAGNETOMETER = 4;
+}
+
+// Camera configuration
+message CameraConfig {
+  // Resolution
+  int32 width = 1;
+  int32 height = 2;
+
+  // Format (likely "YUV", "GRAY", "RGB", etc.)
+  string format = 3;
+
+  // Frame rate (FPS)
+  int32 fps = 4;
+}
+
+// Sensor configuration
+message SensorConfig {
+  // Sample rate in Hz
+  int32 sample_rate = 1;
+
+  // Enable specific sensors
+  repeated SensorType enabled_sensors = 2;
+}
+
+// Server -> Client: Stream responses
+message StreamResponse {
+  // Session identifier
+  string session_id = 1;
+
+  // Response timestamp
+  int64 timestamp = 2;
+
+  // Response payload (one of)
+  oneof response {
+    CameraFrame camera_frame = 10;
+    SensorData sensor_data = 11;
+    StreamStatus status = 12;
+  }
+}
+
+// Camera frame data
+message CameraFrame {
+  // Frame sequence number
+  int64 frame_id = 1;
+
+  // Capture timestamp
+  int64 timestamp = 2;
+
+  // Frame dimensions
+  int32 width = 3;
+  int32 height = 4;
+
+  // Pixel format ("YUV420", "GRAY8", etc.)
+  string format = 5;
+
+  // Raw pixel data
+  bytes frame_data = 6;
+}
+
+// Sensor data (IMU, accelerometer, etc.)
+message SensorData {
+  // Sensor timestamp
+  int64 timestamp = 1;
+
+  // Sensor type
+  SensorType sensor_type = 2;
+
+  // Sensor values (3-axis for IMU, etc.)
+  repeated float values = 3;
+}
+
+// Stream status updates
+message StreamStatus {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STREAM_STARTED = 1;
+    STREAM_STOPPED = 2;
+    ERROR = 3;
+  }
+
+  Status status = 1;
+  string message = 2;
+}
+
+// Alternative message names found in binary (legacy or internal)
+// - GlassesMessage
+// - ExternalSensorData
+// - ExtGrayscaleCameraFrameData
+// These may be older message names or internal wrappers

@@ -1,0 +1,17 @@
+# XREAL Eye Windows Test App Dependencies
+# Install with: pip install -r requirements.txt
+
+# USB communication (for potential HID if needed)
+pyusb>=1.2.1
+libusb-package>=1.0.26
+
+# Image processing
+numpy>=1.24.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Network utilities
+netifaces>=0.11.0
+
+# Colored terminal output (Windows)
+colorama>=0.4.6
